@@ -4,7 +4,7 @@ import '@fontsource/ibm-plex-sans/latin-600.css';
 import './styles.css';
 
 import { loadSettings } from './state';
-import { getSettings } from './db';
+import { allDays, getSettings } from './db';
 import { renderSetup } from './screens/setup';
 import { renderHome } from './screens/home';
 import { renderFlow } from './screens/flow';
@@ -12,9 +12,19 @@ import { renderDays, renderDay } from './screens/days';
 import { renderData } from './screens/data';
 import { renderAnalysis } from './screens/analysis';
 import { renderInfo } from './screens/info';
-import { h, mount } from './ui/dom';
+import { h, mount, toast } from './ui/dom';
 
 void navigator.storage?.persist?.().catch(() => undefined);
+
+// Fehler in Knopf- und Formularaktionen (zum Beispiel beim Speichern) duerfen nicht unbemerkt bleiben.
+function reportActionError(err: unknown): void {
+  console.error(err);
+  // Waehrend PVT und DSST nichts einblenden, das von der Aufgabe ablenkt.
+  if (document.body.classList.contains('test-running')) return;
+  toast('Das hat nicht funktioniert. Bitte nochmals versuchen.');
+}
+window.addEventListener('unhandledrejection', (e) => reportActionError(e.reason));
+window.addEventListener('error', (e) => reportActionError(e.error ?? e.message));
 
 async function route(): Promise<void> {
   const s = await loadSettings();
@@ -44,10 +54,10 @@ async function route(): Promise<void> {
       return renderAnalysis();
     case '/info':
       return renderInfo();
-    case '/einstellungen':
-      return renderSetup(await getSettings(), () => {
-        location.hash = '#/';
-      });
+    case '/einstellungen': {
+      const hasDays = (await allDays()).length > 0;
+      return renderSetup(await getSettings(), () => (location.hash = '#/'), hasDays);
+    }
     default:
       location.hash = '#/';
   }

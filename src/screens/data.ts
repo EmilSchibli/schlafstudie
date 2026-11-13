@@ -1,35 +1,43 @@
-import { allDays, allRaw, buildBackup, getSettings, isBackupFile, restoreBackup, saveSettings } from '../db';
+import { allDays, allRaw, buildBackup, getSettings, restoreBackup, saveSettings } from '../db';
+import { isBackupFile } from '../backupFormat';
 import { dailyCsv, dsstCsv, pvtCsv } from '../csv';
 import { localDateTime } from '../dates';
 import { setCachedSettings } from '../state';
 import { confirmDialog, h, toast } from '../ui/dom';
 import { dl, notice, page } from '../ui/layout';
-import type { Settings } from '../types';
+import type { BackupFile, Settings } from '../types';
+
+/** Ein Backup der ganzen Studie bleibt weit darunter. Schuetzt vor versehentlich gewaehlten Riesendateien. */
+const MAX_BACKUP_BYTES = 50 * 1024 * 1024;
 
 interface OutFile {
   name: string;
   file: File;
 }
 
-async function makeFiles(): Promise<{ files: OutFile[]; pid: string }> {
+async function participantCode(): Promise<string> {
+  return (await getSettings())?.participantId ?? 'P0';
+}
+
+async function makeBackupFile(): Promise<OutFile> {
+  const name = `backup_${await participantCode()}.json`;
+  const backup = await buildBackup();
+  return { name, file: new File([JSON.stringify(backup, null, 2)], name, { type: 'application/json' }) };
+}
+
+/** Alle vier Exportdateien: Tageswerte, PVT-Rohdaten, DSST-Rohdaten, Backup. */
+async function makeFiles(): Promise<OutFile[]> {
   const s = await getSettings();
-  const pid = s?.participantId ?? 'P0';
+  const pid = await participantCode();
   const days = await allDays(s?.participantId);
   const raw = await allRaw();
-  const backup = await buildBackup();
   const csv = (name: string, text: string) => ({ name, file: new File([text], name, { type: 'text/csv;charset=utf-8' }) });
-  return {
-    pid,
-    files: [
-      csv(`daily_summary_${pid}.csv`, dailyCsv(days)),
-      csv(`pvt_trials_${pid}.csv`, pvtCsv(raw.pvt, raw.attempts)),
-      csv(`dsst_trials_${pid}.csv`, dsstCsv(raw.dsst, raw.attempts)),
-      {
-        name: `backup_${pid}.json`,
-        file: new File([JSON.stringify(backup, null, 2)], `backup_${pid}.json`, { type: 'application/json' }),
-      },
-    ],
-  };
+  return [
+    csv(`daily_summary_${pid}.csv`, dailyCsv(days)),
+    csv(`pvt_trials_${pid}.csv`, pvtCsv(raw.pvt, raw.attempts)),
+    csv(`dsst_trials_${pid}.csv`, dsstCsv(raw.dsst, raw.attempts)),
+    await makeBackupFile(),
+  ];
 }
 
 function download(f: File): void {
@@ -72,9 +80,8 @@ export function backupButton(label = 'Backup senden'): HTMLButtonElement {
       class: 'btn btn-primary',
       type: 'button',
       onclick: async () => {
-        const { files } = await makeFiles();
-        const backup = files[3].file;
-        if (await shareOrDownload([backup], 'Backup Schlafstudie')) {
+        const backup = await makeBackupFile();
+        if (await shareOrDownload([backup.file], 'Backup Schlafstudie')) {
           await markBackup();
           toast('Backup erstellt');
         }
@@ -82,6 +89,36 @@ export function backupButton(label = 'Backup senden'): HTMLButtonElement {
     },
     label,
   );
+}
+
+async function readBackupFile(file: File): Promise<BackupFile | null> {
+  if (file.size > MAX_BACKUP_BYTES) return null;
+  try {
+    const data: unknown = JSON.parse(await file.text());
+    return isBackupFile(data) ? data : null;
+  } catch {
+    // Kein JSON oder nicht lesbar: wird wie ein ungueltiges Backup behandelt.
+    return null;
+  }
+}
+
+async function importBackup(file: File): Promise<void> {
+  const data = await readBackupFile(file);
+  if (!data) return toast('Diese Datei ist kein gültiges Backup der Schlafstudie.');
+  const ok = await confirmDialog(
+    `Backup vom ${localDateTime(new Date(data.exportedAt))} mit ${data.days.length} Tagen einlesen? Alle Daten auf diesem Handy werden dadurch ersetzt.`,
+    'Ersetzen',
+  );
+  if (!ok) return;
+  try {
+    await restoreBackup(data);
+  } catch (err) {
+    console.error(err);
+    return toast('Einlesen fehlgeschlagen. Die bisherigen Daten sind unverändert.');
+  }
+  if (data.settings) setCachedSettings(data.settings);
+  toast('Backup eingelesen');
+  location.hash = '#/';
 }
 
 export async function renderData(): Promise<void> {
@@ -96,7 +133,7 @@ export async function renderData(): Promise<void> {
       class: 'btn btn-primary',
       type: 'button',
       onclick: async () => {
-        const { files } = await makeFiles();
+        const files = await makeFiles();
         if (await shareOrDownload(files.map((f) => f.file), 'Daten Schlafstudie')) {
           await markBackup();
           toast('Daten exportiert');
@@ -107,7 +144,7 @@ export async function renderData(): Promise<void> {
   );
 
   const singles = h('div', { class: 'file-list' });
-  void makeFiles().then(({ files }) => {
+  void makeFiles().then((files) => {
     singles.replaceChildren(
       ...files.map((f) =>
         h(
@@ -130,24 +167,8 @@ export async function renderData(): Promise<void> {
   const fileInput = h('input', { type: 'file', accept: 'application/json,.json', class: 'visually-hidden', id: 'import' });
   fileInput.addEventListener('change', async () => {
     const file = fileInput.files?.[0];
-    if (!file) return;
-    try {
-      const data = JSON.parse(await file.text());
-      if (!isBackupFile(data)) throw new Error('Format');
-      const ok = await confirmDialog(
-        `Backup vom ${localDateTime(new Date(data.exportedAt))} mit ${data.days.length} Tagen einlesen? Alle Daten auf diesem Handy werden dadurch ersetzt.`,
-        'Ersetzen',
-      );
-      if (!ok) return;
-      await restoreBackup(data);
-      if (data.settings) setCachedSettings(data.settings);
-      toast('Backup eingelesen');
-      location.hash = '#/';
-    } catch {
-      toast('Diese Datei ist kein gültiges Backup der Schlafstudie.');
-    } finally {
-      fileInput.value = '';
-    }
+    fileInput.value = '';
+    if (file) await importBackup(file);
   });
 
   page(

@@ -4,6 +4,7 @@ import type { PvtTrialType } from '../types';
 import { h } from '../ui/dom';
 import { createSevenSeg } from '../ui/sevenseg';
 import { requestWakeLock } from '../device';
+import { createAbortButton } from './abortButton';
 
 export interface RawPvtTrial {
   trialIndex: number;
@@ -43,7 +44,7 @@ export function runPvt(
 ): void {
   const display = createSevenSeg(5);
   const message = h('p', { class: 'pvt-message', 'aria-live': 'off' });
-  const abortBtn = h('button', { class: 'pvt-abort', type: 'button' }, 'Abbrechen');
+  const abortBtn = createAbortButton('pvt-abort', () => abort('Vom Probanden abgebrochen'));
   const screen = h(
     'div',
     { class: 'pvt-screen' },
@@ -125,14 +126,14 @@ export function runPvt(
       phase = 'isi';
     }
 
-    if (phase === 'isi' || phase === 'feedback') {
-      // Testende: kein neuer Reiz nach Ablauf der Testdauer.
-      if (rel(ts) >= PVT.durationMs || nextOnset - t0 >= PVT.durationMs) {
-        if (rel(ts) >= PVT.durationMs) {
-          finish();
-          return;
-        }
-      } else if (phase === 'isi' && ts >= nextOnset) {
+    if (phase === 'isi') {
+      // Testende erst im Wartezustand, damit die Rueckmeldung des letzten Reizes stehen bleibt.
+      if (rel(ts) >= PVT.durationMs) {
+        finish();
+        return;
+      }
+      // Kein neuer Reiz, dessen Beginn nach Ablauf der Testdauer laege.
+      if (ts >= nextOnset && rel(nextOnset) < PVT.durationMs) {
         // Reiz in diesem Frame sichtbar machen. Reizbeginn = Zeitstempel dieses Frames.
         onset = ts;
         phase = 'stimulus';
@@ -211,12 +212,6 @@ export function runPvt(
   function onPageHide() {
     abort('App wurde geschlossen');
   }
-
-  abortBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
-  abortBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    abort('Vom Probanden abgebrochen');
-  });
 
   screen.addEventListener('pointerdown', onPointer);
   document.addEventListener('visibilitychange', onVisibility);

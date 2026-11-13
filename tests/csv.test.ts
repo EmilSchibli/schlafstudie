@@ -71,6 +71,15 @@ describe('CSV Format', () => {
     expect(formatCell(3.14159, 2)).toBe('3.14');
     expect(formatCell('a"b')).toBe('"a""b"');
   });
+  it('Freitext wird von Excel nicht als Formel gelesen', () => {
+    expect(formatCell('=SUMME(A1:A9)')).toBe("'=SUMME(A1:A9)");
+    expect(formatCell('+41 79')).toBe("'+41 79");
+    expect(formatCell('-kein Schlaf')).toBe("'-kein Schlaf");
+    expect(formatCell('@home')).toBe("'@home");
+    expect(formatCell('=1;2')).toBe('"\'=1;2"');
+    expect(formatCell(-3.5)).toBe('-3.5');
+    expect(formatCell('2026-11-10')).toBe('2026-11-10');
+  });
   it('ungueltiger PVT wird nicht exportiert', () => {
     const csv = dailyCsv([{ ...day, pvtValid: false }]);
     const row = csv.slice(1).split('\r\n')[1].split(';');

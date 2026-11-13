@@ -1,6 +1,7 @@
 import { KSS_LABELS, KSS_QUESTION, PVT, DSST } from '../config';
 import { addDsstTrials, addPvtTrials, attemptsFor, saveAttempt, saveDay } from '../db';
 import { localDateTime, localTime, minutesBetween, formatDateCH } from '../dates';
+import { sleepMissing } from '../dayRecord';
 import { computeDsstMetrics } from '../metrics/dsst';
 import { computePvtMetrics } from '../metrics/pvt';
 import { runDsst } from '../battery/dsstRunner';
@@ -120,28 +121,39 @@ function renderPre(rec: DayRecord): void {
 /* ---------- 2 KSS ---------- */
 
 function renderKss(rec: DayRecord): void {
-  const list = h(
-    'div',
-    { class: 'kss-list', role: 'radiogroup', 'aria-label': KSS_QUESTION },
-    ...Object.entries(KSS_LABELS).map(([value, label]) =>
-      h(
-        'button',
-        {
-          type: 'button',
-          class: `kss-option${Number(value) % 2 === 1 ? ' anchor' : ''}`,
-          role: 'radio',
-          'aria-checked': 'false',
-          onclick: async () => {
-            rec.kss = Number(value);
-            await go(rec, 'pvt');
-          },
-        },
-        h('span', { class: 'kss-value' }, value),
-        h('span', { class: 'kss-label' }, label),
-      ),
+  let selected: number | null = rec.kss;
+  const next = h('button', { class: 'btn btn-primary', type: 'button', disabled: selected === null }, 'Weiter zum Reaktionstest');
+  const options = Object.entries(KSS_LABELS).map(([value, label]) =>
+    h(
+      'button',
+      {
+        type: 'button',
+        class: `kss-option${Number(value) % 2 === 1 ? ' anchor' : ''}`,
+        role: 'radio',
+        'aria-checked': String(selected === Number(value)),
+        'data-value': value,
+      },
+      h('span', { class: 'kss-value' }, value),
+      h('span', { class: 'kss-label' }, label),
     ),
   );
-  flowPage(settings(), 'kss', 'Schläfrigkeit', [h('p', { class: 'question' }, KSS_QUESTION), list]);
+  const list = h('div', { class: 'kss-list', role: 'radiogroup', 'aria-label': KSS_QUESTION }, ...options);
+
+  // Auswahl und Bestaetigung sind getrennt, damit ein Fehltipp korrigiert werden kann.
+  list.addEventListener('click', (e) => {
+    const option = (e.target as HTMLElement).closest<HTMLButtonElement>('.kss-option');
+    if (!option) return;
+    selected = Number(option.dataset.value);
+    for (const o of options) o.setAttribute('aria-checked', String(o === option));
+    next.disabled = false;
+  });
+  next.addEventListener('click', async () => {
+    if (selected === null) return;
+    rec.kss = selected;
+    await go(rec, 'pvt');
+  });
+
+  flowPage(settings(), 'kss', 'Schläfrigkeit', [h('p', { class: 'question' }, KSS_QUESTION), list, next]);
 }
 
 /* ---------- Gemeinsame Logik fuer Abbrueche ---------- */
@@ -353,7 +365,7 @@ function renderDiary(rec: DayRecord): void {
 function renderDone(rec: DayRecord): void {
   const check = (ok: boolean, label: string, detail?: string) =>
     h('li', { class: ok ? 'ok' : 'missing' }, h('span', { class: 'mark', 'aria-hidden': 'true' }, ok ? '✓' : '!'), label, detail ? h('span', { class: 'detail' }, detail) : null);
-  const sleepOk = !!rec.sleep && (rec.sleep.trackerWorn === false || rec.sleep.sleepMinutes !== null);
+  const sleepOk = !sleepMissing(rec);
   mount(
     h(
       'header',

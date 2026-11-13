@@ -3,6 +3,7 @@ import { createMapping, nextSymbol } from '../metrics/dsst';
 import { h } from '../ui/dom';
 import { symbolSvg } from '../ui/symbols';
 import { requestWakeLock } from '../device';
+import { createAbortButton } from './abortButton';
 
 export interface RawDsstTrial {
   trialIndex: number;
@@ -52,7 +53,7 @@ export function runDsst(
     buttons.push(b);
     pad.append(b);
   }
-  const abortBtn = h('button', { class: 'link-btn dsst-abort', type: 'button' }, 'Abbrechen');
+  const abortBtn = createAbortButton('link-btn dsst-abort', () => abort('Vom Probanden abgebrochen'));
   const startBtn = h('button', { class: 'btn btn-primary', type: 'button' }, 'Test starten');
   const intermission = h(
     'div',
@@ -174,7 +175,6 @@ export function runDsst(
   }
 
   pad.addEventListener('pointerdown', onKey);
-  abortBtn.addEventListener('click', () => abort('Vom Probanden abgebrochen'));
   startBtn.addEventListener('click', () => {
     intermission.hidden = true;
     pad.hidden = false;

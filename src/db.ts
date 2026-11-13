@@ -1,6 +1,7 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { AttemptLog, BackupFile, DayRecord, DsstTrial, PvtTrial, Settings } from './types';
 import { APP_VERSION } from './config';
+import { BACKUP_SCHEMA, isBackupFile } from './backupFormat';
 
 interface StudyDB extends DBSchema {
   settings: { key: string; value: Settings };
@@ -87,7 +88,7 @@ function stripId<T extends { id?: number }>(t: T): Omit<T, 'id'> {
 export async function buildBackup(): Promise<BackupFile> {
   const d = await db();
   return {
-    schema: 'bma-schlafstudie-1',
+    schema: BACKUP_SCHEMA,
     exportedAt: new Date().toISOString(),
     appVersion: APP_VERSION,
     settings: (await d.get('settings', SETTINGS_KEY)) ?? null,
@@ -98,31 +99,34 @@ export async function buildBackup(): Promise<BackupFile> {
   };
 }
 
-export function isBackupFile(x: unknown): x is BackupFile {
-  const b = x as BackupFile;
-  return !!b && b.schema === 'bma-schlafstudie-1' && Array.isArray(b.days) && Array.isArray(b.pvtTrials);
-}
+const ALL_STORES = ['settings', 'days', 'pvtTrials', 'dsstTrials', 'attempts'] as const;
 
 /**
  * Ersetzt den gesamten Datenbestand durch das Backup.
  * Rohdaten werden ersetzt (nicht ergaenzt), damit keine Duplikate entstehen.
+ * Schlaegt das Einlesen fehl, bleibt der bisherige Datenbestand erhalten.
  */
 export async function restoreBackup(b: BackupFile): Promise<void> {
-  const d = await db();
-  const tx = d.transaction(['settings', 'days', 'pvtTrials', 'dsstTrials', 'attempts'], 'readwrite');
-  await Promise.all([
-    tx.objectStore('settings').clear(),
-    tx.objectStore('days').clear(),
-    tx.objectStore('pvtTrials').clear(),
-    tx.objectStore('dsstTrials').clear(),
-    tx.objectStore('attempts').clear(),
-  ]);
-  if (b.settings) await tx.objectStore('settings').put(b.settings, SETTINGS_KEY);
-  for (const day of b.days) await tx.objectStore('days').put(day);
-  for (const t of b.pvtTrials) await tx.objectStore('pvtTrials').add({ ...t });
-  for (const t of b.dsstTrials) await tx.objectStore('dsstTrials').add({ ...t });
-  for (const a of b.attempts ?? []) await tx.objectStore('attempts').put(a);
-  await tx.done;
+  if (!isBackupFile(b)) throw new Error('Die Datei ist kein gültiges Backup.');
+  const tx = (await db()).transaction(ALL_STORES, 'readwrite');
+  try {
+    await Promise.all(ALL_STORES.map((name) => tx.objectStore(name).clear()));
+    if (b.settings) await tx.objectStore('settings').put(b.settings, SETTINGS_KEY);
+    for (const day of b.days) await tx.objectStore('days').put(day);
+    for (const t of b.pvtTrials) await tx.objectStore('pvtTrials').add({ ...t });
+    for (const t of b.dsstTrials) await tx.objectStore('dsstTrials').add({ ...t });
+    for (const a of b.attempts) await tx.objectStore('attempts').put(a);
+    await tx.done;
+  } catch (err) {
+    // Ohne Abbruch wuerde die Transaktion das Leeren der Tabellen trotzdem festschreiben.
+    tx.done.catch(() => undefined);
+    try {
+      tx.abort();
+    } catch {
+      // Transaktion ist bereits beendet, es gibt nichts mehr zurueckzunehmen.
+    }
+    throw err;
+  }
 }
 
 export async function allRaw(): Promise<{ pvt: PvtTrial[]; dsst: DsstTrial[]; attempts: AttemptLog[] }> {

@@ -1,7 +1,7 @@
 // Alle Testparameter an einem Ort. Diese Werte sind in der BMA zu dokumentieren.
 // Aenderungen nur mit Begruendung aus der Literatur.
 
-export const APP_VERSION = '1.0.0';
+export const APP_VERSION = '1.1.0';
 
 export const PARTICIPANTS = ['P1', 'P2', 'P3'] as const;
 export type ParticipantId = (typeof PARTICIPANTS)[number];

@@ -65,7 +65,7 @@ Android (Chrome):
 1. Adresse in Chrome oeffnen.
 2. Menue mit den drei Punkten, dann "App installieren" oder "Zum Startbildschirm hinzufuegen".
 
-Beim ersten Start: Probanden-Code (P1, P2 oder P3), Daten der Phasen und das Zeitfenster nach dem Aufstehen eintragen.
+Beim ersten Start: Probanden-Code (P1, P2 oder P3), Daten der Phasen und das Zeitfenster nach dem Aufstehen eintragen. Sobald ein Messtag gespeichert ist, laesst sich der Probanden-Code nicht mehr aendern.
 
 ## Daten
 
@@ -78,7 +78,9 @@ Unter "Daten" erzeugt die App:
 | `dsst_trials_P1.csv` | Jeder einzelne DSST-Durchgang |
 | `backup_P1.json` | Kompletter Datenbestand, kann wieder eingelesen werden |
 
-CSV: Semikolon als Trennzeichen, Dezimalpunkt, UTF-8 mit BOM (oeffnet sich in Excel direkt richtig). Ja/Nein als 1/0. Leere Zellen bedeuten: kein Wert.
+CSV: Semikolon als Trennzeichen, Dezimalpunkt, UTF-8 mit BOM (oeffnet sich in Excel direkt richtig). Ja/Nein als 1/0. Leere Zellen bedeuten: kein Wert. Freitext, der mit `=`, `+`, `-` oder `@` beginnt, bekommt ein Apostroph vorangestellt, damit Excel ihn nicht als Formel liest.
+
+Die Spalte `app_version` zeigt, mit welcher Version ein Tag erfasst wurde. Version 1.1.0 aendert keine Testparameter. Geaendert sind nur Bedienung und Datensicherheit (KSS mit Bestaetigung, Abbrechen mit zweitem Tipp, Backup-Pruefung).
 
 Ungueltige Tests (abgebrochen) erscheinen in daily_summary ohne Kennwerte, mit `pvt_valid = 0` bzw. `dsst_valid = 0`. Ihre Rohdaten bleiben in den Trial-Dateien, markiert mit `attempt_status = aborted`.
 
@@ -107,5 +109,7 @@ src/
   screens/            Bildschirme
   csv.ts              CSV-Export
   db.ts               Speicherung in IndexedDB, Backup
+  backupFormat.ts     Pruefung einer Backup-Datei vor dem Einlesen
+  dayRecord.ts        Regeln zum Nachtragen von Schlafwerten und Tagebuch
 tests/                Unit-Tests (Vitest)
 ```

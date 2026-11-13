@@ -1,54 +1,26 @@
 import { BACKUP_WARN_DAYS } from '../config';
-import { getDay } from '../db';
-import { addDays, formatDateCH, hideResultsBeforeTest, isStillEditable, localDate, localTime } from '../dates';
+import { allDays } from '../db';
+import { addDays, formatDateCH, hideResultsBeforeTest, localDate, localTime } from '../dates';
+import { canEditEntries, sleepMissing } from '../dayRecord';
 import { isIos, isStandalone } from '../device';
 import { settings } from '../state';
-import type { DayRecord } from '../types';
+import type { DayRecord, Settings } from '../types';
 import { h, mount } from '../ui/dom';
 import { FLOW_STEPS, header, notice } from '../ui/layout';
 
-const sleepMissing = (d: DayRecord | null) => !!d && (!d.sleep || (d.sleep.trackerWorn !== false && d.sleep.sleepMinutes === null));
+const MS_PER_DAY = 86_400_000;
 
 export async function renderHome(): Promise<void> {
   const s = settings();
   const today = localDate();
-  const rec = await getDay(s.participantId, today);
-  const yesterday = await getDay(s.participantId, addDays(today, -1));
-
-  // Heute
-  let todayBlock: HTMLElement;
-  if (!rec) {
-    todayBlock = h(
-      'section',
-      { class: 'today' },
-      h('h2', null, 'Heute'),
-      h('p', null, 'KSS, Reaktionstest, Symbol-Zahlen-Test, Schlafwerte und Tagebuch. Etwa 10 Minuten.'),
-      h('a', { class: 'btn btn-primary btn-large', href: '#/morgen' }, 'Morgenprotokoll starten'),
-    );
-  } else if (rec.step !== 'done') {
-    const step = FLOW_STEPS.findIndex((x) => x.id === rec.step);
-    todayBlock = h(
-      'section',
-      { class: 'today' },
-      h('h2', null, 'Heute'),
-      h('p', null, `Begonnen. Weiter bei Schritt ${step + 1} von ${FLOW_STEPS.length}: ${FLOW_STEPS[step].label}.`),
-      h('a', { class: 'btn btn-primary btn-large', href: '#/morgen' }, 'Fortsetzen'),
-    );
-  } else {
-    todayBlock = h(
-      'section',
-      { class: 'today done' },
-      h('h2', null, 'Heute'),
-      h('p', null, 'Protokoll abgeschlossen.'),
-      sleepMissing(rec) ? h('a', { class: 'btn btn-primary', href: `#/tag/${today}` }, 'Schlafwerte nachtragen') : null,
-    );
-  }
+  const days = await allDays(s.participantId);
+  const rec = days.find((d) => d.date === today) ?? null;
+  const yesterday = days.find((d) => d.date === addDays(today, -1)) ?? null;
 
   const reminders: HTMLElement[] = [];
-  if (yesterday && sleepMissing(yesterday) && isStillEditable(yesterday.date, today)) {
-    reminders.push(
-      notice('warn', 'Schlafwerte von gestern fehlen noch. ', h('a', { href: `#/tag/${yesterday.date}` }, 'Jetzt nachtragen'), '. Möglich bis heute Abend.'),
-    );
+  if (yesterday && canEditEntries(yesterday, today) && (sleepMissing(yesterday) || yesterday.step !== 'done')) {
+    const what = yesterday.step === 'done' ? 'Schlafwerte von gestern fehlen noch' : 'Das Protokoll von gestern ist noch nicht abgeschlossen';
+    reminders.push(notice('warn', `${what}. `, h('a', { href: `#/tag/${yesterday.date}` }, 'Jetzt nachtragen'), '. Möglich bis heute Abend.'));
   }
   if (isIos() && !isStandalone()) {
     reminders.push(
@@ -58,16 +30,6 @@ export async function renderHome(): Promise<void> {
       ),
     );
   }
-
-  const last = s.lastBackupAt ? new Date(s.lastBackupAt) : null;
-  const ageDays = last ? (Date.now() - last.getTime()) / 86_400_000 : Infinity;
-  const backupLine = h(
-    'p',
-    { class: `backup-line${ageDays > BACKUP_WARN_DAYS ? ' stale' : ''}` },
-    'Letztes Backup: ',
-    last ? `${formatDateCH(localDate(last))}, ${localTime(last)}` : 'noch keines',
-    !last ? '. Nach dem ersten Protokoll sichern.' : ageDays > BACKUP_WARN_DAYS ? `. Älter als ${BACKUP_WARN_DAYS} Tage, bitte jetzt sichern.` : '',
-  );
 
   const nav = h(
     'nav',
@@ -86,7 +48,59 @@ export async function renderHome(): Promise<void> {
     menuItem('#/einstellungen', 'Einstellungen', 'Phasen und Zeitfenster'),
   );
 
-  mount(header(s), h('main', { class: 'page' }, h('h1', { class: 'visually-hidden' }, 'Übersicht'), ...reminders, todayBlock, backupLine, nav));
+  mount(
+    header(s),
+    h('main', { class: 'page' }, h('h1', { class: 'visually-hidden' }, 'Übersicht'), ...reminders, todayBlock(rec), backupLine(s, days.length > 0), nav),
+  );
+}
+
+/** Der Block «Heute»: starten, fortsetzen oder abgeschlossen. */
+function todayBlock(rec: DayRecord | null): HTMLElement {
+  const date = new Date().toLocaleDateString('de-CH', { weekday: 'long', day: 'numeric', month: 'long' });
+  const heading = h('h2', null, 'Heute', h('span', { class: 'today-date' }, date));
+  if (!rec) {
+    return h(
+      'section',
+      { class: 'today' },
+      heading,
+      h('p', null, 'KSS, Reaktionstest, Symbol-Zahlen-Test, Schlafwerte und Tagebuch. Etwa 10 Minuten.'),
+      h('a', { class: 'btn btn-primary btn-large', href: '#/morgen' }, 'Morgenprotokoll starten'),
+    );
+  }
+  if (rec.step !== 'done') {
+    const step = FLOW_STEPS.findIndex((x) => x.id === rec.step);
+    return h(
+      'section',
+      { class: 'today' },
+      heading,
+      h('p', null, `Begonnen. Weiter bei Schritt ${step + 1} von ${FLOW_STEPS.length}: ${FLOW_STEPS[step].label}.`),
+      h('a', { class: 'btn btn-primary btn-large', href: '#/morgen' }, 'Fortsetzen'),
+    );
+  }
+  return h(
+    'section',
+    { class: 'today done' },
+    heading,
+    h('p', null, 'Protokoll abgeschlossen.'),
+    sleepMissing(rec) ? h('a', { class: 'btn btn-primary', href: `#/tag/${rec.date}` }, 'Schlafwerte nachtragen') : null,
+  );
+}
+
+/** Stand des Backups. Gewarnt wird nur, wenn es Daten gibt, die verloren gehen koennten. */
+function backupLine(s: Settings, hasData: boolean): HTMLElement {
+  const last = s.lastBackupAt ? new Date(s.lastBackupAt) : null;
+  if (!last) {
+    return hasData
+      ? h('p', { class: 'backup-line stale' }, 'Noch kein Backup. Bitte unter «Daten» sichern.')
+      : h('p', { class: 'backup-line' }, 'Noch kein Backup. Nach dem ersten Protokoll sichern.');
+  }
+  const stale = (Date.now() - last.getTime()) / MS_PER_DAY > BACKUP_WARN_DAYS;
+  return h(
+    'p',
+    { class: `backup-line${stale ? ' stale' : ''}` },
+    `Letztes Backup: ${formatDateCH(localDate(last))}, ${localTime(last)}`,
+    stale ? `. Älter als ${BACKUP_WARN_DAYS} Tage, bitte jetzt sichern.` : '',
+  );
 }
 
 function menuItem(href: string, title: string, sub: string): HTMLElement {

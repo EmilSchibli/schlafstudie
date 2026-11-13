@@ -119,9 +119,11 @@ export function sleepForm(initial: SleepEntry | null): { el: HTMLElement; read: 
     if (hh !== null || mm !== null) sleepMinutes = Math.round((hh ?? 0) * 60 + (mm ?? 0));
     if (trackerWorn === null) errors.push('Bitte angeben, ob die Fitbit getragen wurde.');
     if (trackerWorn && sleepMinutes === null) errors.push('Schlafdauer fehlt. Falls die Werte noch nicht da sind: später nachtragen.');
+    if (hh !== null && hh < 0) errors.push('Stunden dürfen nicht negativ sein.');
     if (mm !== null && (mm < 0 || mm > 59)) errors.push('Minuten müssen zwischen 0 und 59 liegen.');
     const hrvMs = readNumber(hrv);
     const restingHr = readNumber(rhr);
+    if ((hrvMs !== null && hrvMs < 0) || (restingHr !== null && restingHr < 0)) errors.push('HRV und Ruhepuls dürfen nicht negativ sein.');
     const P = PLAUSIBILITY;
     if (sleepMinutes !== null && (sleepMinutes < P.sleepMinutes.min || sleepMinutes > P.sleepMinutes.max))
       warnings.push(`Schlafdauer ${sleepMinutes} min ist ungewöhnlich. Bitte prüfen.`);
@@ -199,6 +201,7 @@ export function diaryForm(initial: DiaryEntry | null): { el: HTMLElement; read: 
     if (!value.trainingYesterday) errors.push('Training gestern fehlt.');
     if ((t === 'leicht' || t === 'intensiv') && !value.trainingEndTime) errors.push('Uhrzeit des Trainingsendes fehlt.');
     if (value.alcoholDrinks === null) errors.push('Alkohol fehlt (0 eintragen, wenn keiner).');
+    else if (value.alcoholDrinks < 0) errors.push('Alkohol: Die Anzahl darf nicht negativ sein.');
     if (value.sick === null) errors.push('Krank: Ja oder Nein wählen.');
     if (value.napYesterday === null) errors.push('Mittagsschlaf: Ja oder Nein wählen.');
     return { value, errors, warnings: [] };

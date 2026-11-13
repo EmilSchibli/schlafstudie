@@ -1,7 +1,8 @@
 import 'fake-indexeddb/auto';
 import { describe, expect, it } from 'vitest';
-import { addPvtTrials, allDays, buildBackup, isBackupFile, restoreBackup, saveDay, saveSettings, getSettings } from '../src/db';
-import type { DayRecord, Settings } from '../src/types';
+import { addPvtTrials, allDays, buildBackup, restoreBackup, saveDay, saveSettings, getSettings } from '../src/db';
+import { isBackupFile } from '../src/backupFormat';
+import type { BackupFile, DayRecord, Settings } from '../src/types';
 
 const settings: Settings = {
   participantId: 'P2',
@@ -61,5 +62,24 @@ describe('Backup', () => {
     expect(again.pvtTrials).toHaveLength(1);
     expect((await getSettings())?.participantId).toBe('P2');
     expect((await allDays('P2')).map((d) => d.date)).toEqual(['2026-11-08', '2026-11-09']);
+  });
+
+  it('Ein fehlerhaftes Backup laesst den bestehenden Datenbestand unveraendert', async () => {
+    await saveSettings(settings);
+    await saveDay(day('2026-11-08'));
+    const before = await buildBackup();
+    const { date: _date, ...dayWithoutKey } = day('2026-11-10');
+    const broken = { ...before, days: [day('2026-11-09'), dayWithoutKey] } as unknown as BackupFile;
+
+    await expect(restoreBackup(broken)).rejects.toThrow();
+
+    // Formal gueltig, aber nicht speicherbar: der Fehler tritt erst nach dem Leeren der Tabellen auf.
+    const unstorable = { ...before, days: [{ ...day('2026-11-09'), kss: () => 3 }] } as unknown as BackupFile;
+    await expect(restoreBackup(unstorable)).rejects.toThrow();
+
+    const after = await buildBackup();
+    expect(after.days.map((d) => d.date)).toEqual(before.days.map((d) => d.date));
+    expect(after.pvtTrials).toHaveLength(before.pvtTrials.length);
+    expect((await getSettings())?.participantId).toBe('P2');
   });
 });

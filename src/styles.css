@@ -66,6 +66,12 @@ h2 {
   line-height: 1.25;
   letter-spacing: -0.01em;
   margin: 0;
+  text-wrap: balance;
+}
+
+p,
+li {
+  text-wrap: pretty;
 }
 
 h1 {
@@ -173,6 +179,11 @@ a {
   text-align: center;
   text-decoration: none;
   cursor: pointer;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .btn-primary {
@@ -332,6 +343,15 @@ fieldset.group legend {
   color: #fff;
 }
 
+.segmented input:disabled + span {
+  cursor: default;
+}
+
+.segmented input:disabled:not(:checked) + span {
+  color: var(--ink-3);
+  background: var(--paper);
+}
+
 .segmented input:focus-visible + span {
   outline: 3px solid #5b8fc2;
   outline-offset: -3px;
@@ -404,6 +424,14 @@ fieldset.group legend {
   font-size: 1.3rem;
 }
 
+.today-date {
+  margin-left: 8px;
+  font-size: 0.92rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--ink-3);
+}
+
 .today.done {
   border-left: 4px solid var(--ok);
 }
@@ -439,6 +467,27 @@ fieldset.group legend {
 
 .menu-item.locked .menu-title {
   color: var(--ink-2);
+}
+
+/* Pfeil nur bei Eintraegen, die wirklich irgendwohin fuehren */
+a.menu-item {
+  position: relative;
+  padding-right: 28px;
+}
+
+a.menu-item::after {
+  content: '›';
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.3rem;
+  line-height: 1;
+  color: var(--ink-3);
+}
+
+a.menu-item:active {
+  background: var(--blue-wash);
 }
 
 .menu-sub {
@@ -525,8 +574,8 @@ fieldset.group legend {
   grid-template-columns: 40px 1fr;
   align-items: center;
   gap: 10px;
-  min-height: 64px;
-  padding: 8px 12px;
+  min-height: var(--tap);
+  padding: 6px 12px;
   background: var(--surface);
   border: 1px solid var(--rule);
   border-radius: var(--radius);
@@ -550,6 +599,20 @@ fieldset.group legend {
 
 .kss-option:not(.anchor) .kss-label {
   color: var(--ink-2);
+}
+
+.kss-option[aria-checked='true'] {
+  background: var(--blue);
+  border-color: var(--blue);
+}
+
+.kss-option[aria-checked='true'] .kss-value,
+.kss-option[aria-checked='true'] .kss-label {
+  color: #fff;
+}
+
+.kss-list + .btn {
+  margin-top: 16px;
 }
 
 /* ---------- Testbildschirme ---------- */

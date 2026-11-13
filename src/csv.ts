@@ -1,7 +1,8 @@
-import type { AttemptLog, DayRecord, DsstTrial, PvtTrial, Settings } from './types';
+import type { AttemptLog, DayRecord, DsstTrial, PvtTrial } from './types';
 
 export const CSV_SEPARATOR = ';';
 const BOM = '﻿';
+const FORMULA_START = /^[=+\-@\t\r]/;
 
 type Cell = string | number | boolean | null | undefined;
 
@@ -14,7 +15,8 @@ export function formatCell(value: Cell, decimals?: number): string {
     if (decimals !== undefined) return String(Number(value.toFixed(decimals)));
     return String(value);
   }
-  const s = String(value);
+  // Text, der wie eine Formel beginnt, wuerde Excel beim Oeffnen ausfuehren. Ein Apostroph macht ihn zu Text.
+  const s = FORMULA_START.test(value) ? `'${value}` : value;
   if (s.includes(CSV_SEPARATOR) || s.includes('"') || s.includes('\n') || s.includes('\r')) {
     return `"${s.replace(/"/g, '""')}"`;
   }
@@ -208,9 +210,4 @@ function attemptStatusLookup(attempts: AttemptLog[], test: 'pvt' | 'dsst') {
   const map = new Map<string, string>();
   for (const a of attempts) if (a.test === test) map.set(`${a.sessionId}#${a.attempt}`, a.status);
   return (sessionId: string, attempt: number) => map.get(`${sessionId}#${attempt}`) ?? '';
-}
-
-export function settingsSummary(s: Settings | null): string {
-  if (!s) return '';
-  return `${s.participantId}, Übung ab ${s.practiceStart}, Hauptmessung ${s.mainStart} bis ${s.endDate}`;
 }
