@@ -1,11 +1,12 @@
 import { h, mount } from './dom';
+import { participantLabel } from '../config';
 import type { Settings } from '../types';
 import { localDate, phaseFor, PHASE_LABEL, dayNumber } from '../dates';
 
 /** Kopfzeile mit Studientitel und Probandenstatus. */
 export function header(settings: Settings | null, back?: { href: string; label: string }): HTMLElement {
   const status = settings
-    ? h('span', { class: 'status' }, h('strong', null, settings.participantId), ' ', statusLine(settings))
+    ? h('span', { class: 'status' }, h('strong', null, participantLabel(settings.participantId)), ' ', statusLine(settings))
     : h('span', { class: 'status' }, 'Einrichtung');
   return h(
     'header',

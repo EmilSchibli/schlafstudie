@@ -4,10 +4,8 @@ import '@fontsource/ibm-plex-sans/latin-600.css';
 import './styles.css';
 
 import { loadSettings } from './state';
-import { allDays, getSettings, onDatabaseWrite } from './db';
-import { cloudConfig } from './cloud/config';
-import { ensureAccess } from './cloud/auth';
-import { scheduleSync, watchOnline } from './cloud/sync';
+import { allDays, getSettings } from './db';
+import { isSignedIn } from './auth/gate';
 import { renderLogin } from './screens/login';
 import { renderSetup } from './screens/setup';
 import { renderHome } from './screens/home';
@@ -19,8 +17,6 @@ import { renderInfo } from './screens/info';
 import { h, mount, toast } from './ui/dom';
 
 void navigator.storage?.persist?.().catch(() => undefined);
-onDatabaseWrite(() => scheduleSync());
-watchOnline();
 
 // Fehler in Knopf- und Formularaktionen (zum Beispiel beim Speichern) duerfen nicht unbemerkt bleiben.
 function reportActionError(err: unknown): void {
@@ -34,11 +30,7 @@ window.addEventListener('error', (e) => reportActionError(e.error ?? e.message))
 
 async function route(): Promise<void> {
   const path = location.hash.replace(/^#/, '') || '/';
-  const config = cloudConfig();
-  if (config && path !== '/info') {
-    const access = await ensureAccess(config);
-    if (access !== 'ok') return renderLogin(() => void route());
-  }
+  if (!isSignedIn() && path !== '/info') return renderLogin(() => void route());
 
   const s = await loadSettings();
 

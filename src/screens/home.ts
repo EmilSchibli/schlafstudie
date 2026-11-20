@@ -7,7 +7,6 @@ import { settings } from '../state';
 import type { DayRecord, Settings } from '../types';
 import { h, mount } from '../ui/dom';
 import { FLOW_STEPS, header, notice } from '../ui/layout';
-import { syncStatusText } from '../cloud/sync';
 
 const MS_PER_DAY = 86_400_000;
 
@@ -58,7 +57,6 @@ export async function renderHome(): Promise<void> {
       ...reminders,
       todayBlock(rec),
       backupLine(s, days.length > 0),
-      syncLine(),
       nav,
     ),
   );
@@ -111,13 +109,6 @@ function backupLine(s: Settings, hasData: boolean): HTMLElement {
     `Letztes Backup: ${formatDateCH(localDate(last))}, ${localTime(last)}`,
     stale ? `. Älter als ${BACKUP_WARN_DAYS} Tage, bitte jetzt sichern.` : '',
   );
-}
-
-function syncLine(): HTMLElement | null {
-  const text = syncStatusText();
-  if (!text) return null;
-  const pending = text.startsWith('Hochladen');
-  return h('p', { class: `backup-line${pending ? ' stale' : ''}` }, text);
 }
 
 function menuItem(href: string, title: string, sub: string): HTMLElement {

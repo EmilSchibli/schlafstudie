@@ -1,4 +1,4 @@
-import { APP_VERSION, DSST, KSS_LABELS, KSS_QUESTION, PLAUSIBILITY, PVT } from '../config';
+import { APP_VERSION, DSST, KSS_LABELS, KSS_QUESTION, PLAUSIBILITY, PVT, participantLabel } from '../config';
 import { getSettings } from '../db';
 import { h } from '../ui/dom';
 import { page } from '../ui/layout';
@@ -79,7 +79,7 @@ export async function renderInfo(): Promise<void> {
       h('h2', null, 'Studieneinstellungen'),
       s
         ? table('Auf diesem Handy', [
-            row('Proband', s.participantId),
+            row('Person', participantLabel(s.participantId)),
             row('Übungswoche ab', s.practiceStart),
             row('Hauptmessung', `${s.mainStart} bis ${s.endDate}`),
             row('Zeitfenster', `${s.windowMinMinutes} bis ${s.windowMaxMinutes} min nach dem Aufstehen`),

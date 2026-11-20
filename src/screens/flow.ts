@@ -1,4 +1,4 @@
-import { KSS_LABELS, KSS_QUESTION, PVT, DSST } from '../config';
+import { KSS_LABELS, KSS_QUESTION, PVT, DSST, participantLabel } from '../config';
 import { addDsstTrials, addPvtTrials, attemptsFor, saveAttempt, saveDay } from '../db';
 import { localDateTime, localTime, minutesBetween, formatDateCH } from '../dates';
 import { sleepMissing } from '../dayRecord';
@@ -371,7 +371,7 @@ function renderDone(rec: DayRecord): void {
       'header',
       { class: 'topbar' },
       h('a', { class: 'back', href: '#/' }, h('span', { 'aria-hidden': 'true' }, '‹ '), 'Übersicht'),
-      h('span', { class: 'status' }, h('strong', null, rec.participantId), ` ${formatDateCH(rec.date)}`),
+      h('span', { class: 'status' }, h('strong', null, participantLabel(rec.participantId)), ` ${formatDateCH(rec.date)}`),
     ),
     h(
       'main',

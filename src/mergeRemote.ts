@@ -1,4 +1,4 @@
-import type { AttemptLog, DayRecord, FlowStep } from '../types';
+import type { AttemptLog, DayRecord, FlowStep } from './types';
 
 const STEP_RANK: Record<FlowStep, number> = {
   pre: 0,

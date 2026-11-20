@@ -1,4 +1,4 @@
-import { DEFAULT_WINDOW, PARTICIPANTS } from '../config';
+import { DEFAULT_WINDOW, PARTICIPANT_NAMES, PARTICIPANTS } from '../config';
 import { saveSettings } from '../db';
 import { deviceId } from '../device';
 import { addDays, localDate } from '../dates';
@@ -10,14 +10,14 @@ import { field, numberInput, readNumber } from './forms';
 
 /**
  * Einrichtung beim ersten Start und spaetere Aenderung der Studieneinstellungen.
- * Sobald Messtage gespeichert sind, ist der Probanden-Code gesperrt:
+ * Sobald Messtage gespeichert sind, ist die Person gesperrt:
  * ein Wechsel wuerde die bisherigen Tage vom neuen Code abtrennen.
  */
 export function renderSetup(existing: Settings | null, onSaved: () => void, participantLocked = false): void {
   const today = localDate();
   const participant = h(
     'div',
-    { class: 'segmented', role: 'radiogroup', 'aria-label': 'Probanden-Code' },
+    { class: 'segmented', role: 'radiogroup', 'aria-label': 'Person' },
     ...PARTICIPANTS.map((p) =>
       h(
         'label',
@@ -29,13 +29,13 @@ export function renderSetup(existing: Settings | null, onSaved: () => void, part
           checked: existing?.participantId === p,
           disabled: participantLocked,
         }),
-        h('span', null, p),
+        h('span', null, PARTICIPANT_NAMES[p]),
       ),
     ),
   );
   const participantHint = participantLocked
-    ? 'Nicht mehr änderbar, weil bereits Messtage unter diesem Code gespeichert sind.'
-    : 'Jede Person verwendet immer denselben Code.';
+    ? 'Nicht mehr änderbar, weil bereits Messtage unter diesem Namen gespeichert sind.'
+    : 'Emil, Nicola oder Vanessa. Jede Person verwendet immer denselben Namen.';
   const practiceStart = h('input', { type: 'date', required: true, value: existing?.practiceStart ?? today });
   const mainStart = h('input', { type: 'date', required: true, value: existing?.mainStart ?? addDays(today, 7) });
   const endDate = h('input', { type: 'date', required: true, value: existing?.endDate ?? addDays(today, 7 + 48) });
@@ -46,7 +46,7 @@ export function renderSetup(existing: Settings | null, onSaved: () => void, part
   const form = h(
     'form',
     { class: 'form', novalidate: true },
-    field('Probanden-Code', participant, participantHint),
+    field('Person', participant, participantHint),
     h(
       'fieldset',
       { class: 'group' },
@@ -73,7 +73,7 @@ export function renderSetup(existing: Settings | null, onSaved: () => void, part
     e.preventDefault();
     const checked = form.querySelector<HTMLInputElement>('input[name=participant]:checked');
     const pid = PARTICIPANTS.find((p) => p === checked?.value);
-    if (!pid) return void (error.textContent = 'Bitte den Probanden-Code wählen.');
+    if (!pid) return void (error.textContent = 'Bitte eine Person wählen.');
     const ps = practiceStart.value;
     const ms = mainStart.value;
     const ed = endDate.value;

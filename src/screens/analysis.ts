@@ -1,3 +1,4 @@
+import { participantLabel } from '../config';
 import { allDays, getDay } from '../db';
 import { formatDateCH, hideResultsBeforeTest, localDate } from '../dates';
 import { completePairs, spearman } from '../metrics/stats';
@@ -211,7 +212,7 @@ export async function renderAnalysis(): Promise<void> {
   const body: Node[] = [
     notice(
       'info',
-      `Nur Daten von ${s.participantId} auf diesem Handy. Die Werte gelten für diese Person und sind beschreibend. Die Daten der drei Personen werden nicht zusammengeworfen.`,
+      `Nur Daten von ${participantLabel(s.participantId)} auf diesem Handy. Die Werte gelten für diese Person und sind beschreibend. Die Daten der drei Personen werden nicht zusammengeworfen.`,
     ),
     notice('warn', 'Während der Hauptmessung möglichst nicht anschauen. Wer seine Werte kennt, strengt sich am nächsten Morgen anders an.'),
   ];

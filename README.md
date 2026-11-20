@@ -65,7 +65,7 @@ Android (Chrome):
 1. Adresse in Chrome oeffnen.
 2. Menue mit den drei Punkten, dann "App installieren" oder "Zum Startbildschirm hinzufuegen".
 
-Beim ersten Start: Probanden-Code (P1, P2 oder P3), Daten der Phasen und das Zeitfenster nach dem Aufstehen eintragen. Sobald ein Messtag gespeichert ist, laesst sich der Probanden-Code nicht mehr aendern.
+Beim ersten Start einmal anmelden. Das Handy bleibt danach angemeldet. Dann die Person waehlen: Emil, Nicola oder Vanessa, dazu die Daten der Phasen und das Zeitfenster nach dem Aufstehen. Sobald ein Messtag gespeichert ist, laesst sich die Person nicht mehr aendern. In den Dateien stehen die Personen weiter als P1, P2 und P3.
 
 ## Daten
 
@@ -73,10 +73,10 @@ Unter "Daten" erzeugt die App:
 
 | Datei | Inhalt |
 |---|---|
-| `daily_summary_P1.csv` | Eine Zeile pro Tag mit allen Kennwerten. Datei fuer die Auswertung |
-| `pvt_trials_P1.csv` | Jeder einzelne PVT-Reiz mit Reaktionszeit |
-| `dsst_trials_P1.csv` | Jeder einzelne DSST-Durchgang |
-| `backup_P1.json` | Kompletter Datenbestand, kann wieder eingelesen werden |
+| `daily_summary_Emil.csv` | Eine Zeile pro Tag mit allen Kennwerten. Datei fuer die Auswertung |
+| `pvt_trials_Emil.csv` | Jeder einzelne PVT-Reiz mit Reaktionszeit |
+| `dsst_trials_Emil.csv` | Jeder einzelne DSST-Durchgang |
+| `backup_Emil.json` | Kompletter Datenbestand, kann wieder eingelesen werden |
 
 CSV: Semikolon als Trennzeichen, Dezimalpunkt, UTF-8 mit BOM (oeffnet sich in Excel direkt richtig). Ja/Nein als 1/0. Leere Zellen bedeuten: kein Wert. Freitext, der mit `=`, `+`, `-` oder `@` beginnt, bekommt ein Apostroph vorangestellt, damit Excel ihn nicht als Formel liest.
 
@@ -86,21 +86,7 @@ Ungueltige Tests (abgebrochen) erscheinen in daily_summary ohne Kennwerte, mit `
 
 Nach jedem Protokoll das Backup senden (an sich selbst oder in den Gruppenchat). Die Startseite warnt, wenn das letzte Backup aelter als 3 Tage ist.
 
-Am Ende der Studie die Datei `daily_summary` von jedem Handy exportieren. Das ist der Datensatz fuer die Auswertung, auch ohne Internet.
-
-## Studienkonto (optional)
-
-Kostenloses Supabase-Projekt. Solange die beiden Werte unten fehlen, bleibt alles nur auf dem Handy und es gibt keinen Anmeldebildschirm.
-
-1. Auf https://supabase.com ein Projekt anlegen.
-2. Im SQL-Editor den Inhalt von `supabase/schema.sql` ausfuehren.
-3. Unter Authentication einen Benutzer anlegen (E-Mail und Kennwort). Dasselbe Konto auf allen Handys und am Auswertungscomputer verwenden.
-4. Unter Project Settings, API die Project URL und den anon/publishable Schluessel kopieren. Den service_role Schluessel nie in die App oder ins Repository nehmen.
-5. Lokal in `.env` eintragen (Vorlage: `.env.example`). Fuer GitHub Pages dieselben Namen als Repository-Secrets `VITE_SUPABASE_URL` und `VITE_SUPABASE_ANON_KEY` setzen und den Workflow erneut starten.
-
-Danach verlangt die App die Anmeldung. Neue Messwerte werden ins Konto hochgeladen, bleiben aber zusaetzlich auf dem Handy, wenn gerade kein Internet da ist. Am Auswertungscomputer anmelden, unter Daten «Alle Kontodaten laden», dann exportieren.
-
-Der anonyme Schluessel steckt im oeffentlichen Seitenpaket. Lesen und Schreiben geht nur mit der Anmeldung. Das Kennwort steht nicht im Code.
+Am Ende der Studie die Datei `daily_summary` von jedem Handy exportieren und sichern. Das ist der Datensatz fuer die Auswertung. Die Dateien liegen nur auf dem jeweiligen Handy.
 
 ## Messgenauigkeit
 

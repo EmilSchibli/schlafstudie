@@ -6,6 +6,17 @@ export const APP_VERSION = '1.1.0';
 export const PARTICIPANTS = ['P1', 'P2', 'P3'] as const;
 export type ParticipantId = (typeof PARTICIPANTS)[number];
 
+export const PARTICIPANT_NAMES: Record<ParticipantId, string> = {
+  P1: 'Emil',
+  P2: 'Nicola',
+  P3: 'Vanessa',
+};
+
+export function participantLabel(id: string): string {
+  if (id === 'P1' || id === 'P2' || id === 'P3') return PARTICIPANT_NAMES[id];
+  return id;
+}
+
 /** PVT nach Dinges & Powell (1985) und Basner & Dinges (2011). */
 export const PVT = {
   /** Testdauer in ms (5 Minuten) */

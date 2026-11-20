@@ -2,7 +2,7 @@ import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { AttemptLog, BackupFile, DayRecord, DsstTrial, PvtTrial, Settings } from './types';
 import { APP_VERSION } from './config';
 import { BACKUP_SCHEMA, isBackupFile } from './backupFormat';
-import { attemptKey, shouldTakeRemoteAttempt, shouldTakeRemoteDay, trialKey } from './cloud/merge';
+import { attemptKey, shouldTakeRemoteAttempt, shouldTakeRemoteDay, trialKey } from './mergeRemote';
 
 interface StudyDB extends DBSchema {
   settings: { key: string; value: Settings };
