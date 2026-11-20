@@ -6,6 +6,7 @@ import './styles.css';
 import { loadSettings } from './state';
 import { allDays, getSettings } from './db';
 import { isSignedIn } from './auth/gate';
+import { clearAccidentalEmilStart } from './resetAccidentalStart';
 import { renderLogin } from './screens/login';
 import { renderSetup } from './screens/setup';
 import { renderHome } from './screens/home';
@@ -30,6 +31,14 @@ window.addEventListener('error', (e) => reportActionError(e.error ?? e.message))
 
 async function route(): Promise<void> {
   const path = location.hash.replace(/^#/, '') || '/';
+  const removed = await clearAccidentalEmilStart();
+  if (removed) {
+    toast('Der versehentliche Start von heute ist gelöscht. Emil kann neu beginnen.');
+    if (path === '/morgen' || path.startsWith('/tag/2026-11-20')) {
+      location.hash = '#/';
+      return;
+    }
+  }
   if (!isSignedIn() && path !== '/info') return renderLogin(() => void route());
 
   const s = await loadSettings();

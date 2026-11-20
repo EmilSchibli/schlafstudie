@@ -69,6 +69,28 @@ export async function saveDay(d: DayRecord): Promise<void> {
   wrote();
 }
 
+/** Entfernt einen Messtag samt Rohdaten. Die Einrichtung bleibt. */
+export async function deleteDay(participantId: string, date: string): Promise<boolean> {
+  const database = await db();
+  const day = await database.get('days', [participantId, date]);
+  if (!day) return false;
+  const tx = database.transaction(['days', 'pvtTrials', 'dsstTrials', 'attempts'], 'readwrite');
+  await tx.objectStore('days').delete([participantId, date]);
+  const pvtKeys = await tx.objectStore('pvtTrials').index('bySession').getAllKeys(day.sessionId);
+  const dsstKeys = await tx.objectStore('dsstTrials').index('bySession').getAllKeys(day.sessionId);
+  const attempts = await tx.objectStore('attempts').getAll();
+  await Promise.all([
+    ...pvtKeys.map((key) => tx.objectStore('pvtTrials').delete(key)),
+    ...dsstKeys.map((key) => tx.objectStore('dsstTrials').delete(key)),
+    ...attempts
+      .filter((a) => a.sessionId === day.sessionId)
+      .map((a) => tx.objectStore('attempts').delete([a.sessionId, a.test, a.attempt])),
+    tx.done,
+  ]);
+  wrote();
+  return true;
+}
+
 export async function allDays(participantId?: string): Promise<DayRecord[]> {
   const d = await db();
   const list = participantId ? await d.getAllFromIndex('days', 'byParticipant', participantId) : await d.getAll('days');

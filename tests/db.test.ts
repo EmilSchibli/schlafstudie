@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { describe, expect, it } from 'vitest';
-import { addPvtTrials, allDays, buildBackup, getDay, mergeRemote, restoreBackup, saveDay, saveSettings, getSettings } from '../src/db';
+import { addPvtTrials, allDays, buildBackup, deleteDay, getDay, mergeRemote, restoreBackup, saveAttempt, saveDay, saveSettings, getSettings } from '../src/db';
 import { isBackupFile } from '../src/backupFormat';
 import type { BackupFile, DayRecord, Settings } from '../src/types';
 
@@ -94,5 +94,33 @@ describe('Backup', () => {
     expect((await getSettings())?.participantId).toBe('P2');
     expect((await getDay('P2', '2026-11-08'))?.step).toBe('done');
     expect((await getDay('P3', '2026-11-10'))?.date).toBe('2026-11-10');
+  });
+
+  it('loescht einen Messtag samt Rohdaten und laesst andere Tage stehen', async () => {
+    const emil = day('2026-11-20');
+    emil.participantId = 'P1';
+    emil.sessionId = 's-emil';
+    emil.step = 'pre';
+    await saveDay(emil);
+    await saveDay(day('2026-11-20'));
+    await addPvtTrials([
+      { sessionId: 's-emil', date: '2026-11-20', participantId: 'P1', attempt: 1, trialIndex: 1, isiMs: 3000, stimulusOnsetMs: 3000, responseMs: 3300, rtMs: 300, type: 'valid' },
+    ]);
+    await saveAttempt({
+      sessionId: 's-emil',
+      date: '2026-11-20',
+      participantId: 'P1',
+      test: 'pvt',
+      attempt: 1,
+      startedAt: '2026-11-20T07:00:00.000Z',
+      status: 'running',
+      reason: null,
+    });
+    expect(await deleteDay('P1', '2026-11-20')).toBe(true);
+    expect(await getDay('P1', '2026-11-20')).toBeNull();
+    expect(await getDay('P2', '2026-11-20')).not.toBeNull();
+    const backup = await buildBackup();
+    expect(backup.pvtTrials.some((t) => t.sessionId === 's-emil')).toBe(false);
+    expect(backup.attempts.some((a) => a.sessionId === 's-emil')).toBe(false);
   });
 });
