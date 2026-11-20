@@ -2,6 +2,7 @@ import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { AttemptLog, BackupFile, DayRecord, DsstTrial, PvtTrial, Settings } from './types';
 import { APP_VERSION } from './config';
 import { BACKUP_SCHEMA, isBackupFile } from './backupFormat';
+import { attemptKey, shouldTakeRemoteAttempt, shouldTakeRemoteDay, trialKey } from './cloud/merge';
 
 interface StudyDB extends DBSchema {
   settings: { key: string; value: Settings };
@@ -39,12 +40,24 @@ export function _resetDbForTests(): void {
 
 const SETTINGS_KEY = 'main';
 
+let afterWrite: (() => void) | null = null;
+
+/** Wird nach jeder lokalen Aenderung gerufen, zum Beispiel fuer den Upload. */
+export function onDatabaseWrite(listener: () => void): void {
+  afterWrite = listener;
+}
+
+function wrote(): void {
+  afterWrite?.();
+}
+
 export async function getSettings(): Promise<Settings | null> {
   return (await (await db()).get('settings', SETTINGS_KEY)) ?? null;
 }
 
 export async function saveSettings(s: Settings): Promise<void> {
   await (await db()).put('settings', s, SETTINGS_KEY);
+  wrote();
 }
 
 export async function getDay(participantId: string, date: string): Promise<DayRecord | null> {
@@ -53,6 +66,7 @@ export async function getDay(participantId: string, date: string): Promise<DayRe
 
 export async function saveDay(d: DayRecord): Promise<void> {
   await (await db()).put('days', d);
+  wrote();
 }
 
 export async function allDays(participantId?: string): Promise<DayRecord[]> {
@@ -64,15 +78,18 @@ export async function allDays(participantId?: string): Promise<DayRecord[]> {
 export async function addPvtTrials(trials: PvtTrial[]): Promise<void> {
   const tx = (await db()).transaction('pvtTrials', 'readwrite');
   await Promise.all([...trials.map((t) => tx.store.add({ ...t })), tx.done]);
+  wrote();
 }
 
 export async function addDsstTrials(trials: DsstTrial[]): Promise<void> {
   const tx = (await db()).transaction('dsstTrials', 'readwrite');
   await Promise.all([...trials.map((t) => tx.store.add({ ...t })), tx.done]);
+  wrote();
 }
 
 export async function saveAttempt(a: AttemptLog): Promise<void> {
   await (await db()).put('attempts', a);
+  wrote();
 }
 
 export async function attemptsFor(sessionId: string, test: 'pvt' | 'dsst'): Promise<AttemptLog[]> {
@@ -127,6 +144,56 @@ export async function restoreBackup(b: BackupFile): Promise<void> {
     }
     throw err;
   }
+  wrote();
+}
+
+/**
+ * Uebernimmt hochgeladene Tage und Rohdaten.
+ * Die Einrichtung dieses Geraets bleibt. Vorhandene eigene Tage werden nur ersetzt,
+ * wenn der hochgeladene Stand weiter ist.
+ */
+export async function mergeRemote(incoming: {
+  days: DayRecord[];
+  pvtTrials: PvtTrial[];
+  dsstTrials: DsstTrial[];
+  attempts: AttemptLog[];
+}): Promise<void> {
+  const tx = (await db()).transaction(['days', 'pvtTrials', 'dsstTrials', 'attempts'], 'readwrite');
+  try {
+    for (const remote of incoming.days) {
+      const local = (await tx.objectStore('days').get([remote.participantId, remote.date])) ?? null;
+      if (shouldTakeRemoteDay(local, remote)) await tx.objectStore('days').put(remote);
+    }
+    const pvtSeen = new Set((await tx.objectStore('pvtTrials').getAll()).map(trialKey));
+    for (const trial of incoming.pvtTrials) {
+      const key = trialKey(trial);
+      if (pvtSeen.has(key)) continue;
+      pvtSeen.add(key);
+      await tx.objectStore('pvtTrials').add({ ...trial });
+    }
+    const dsstSeen = new Set((await tx.objectStore('dsstTrials').getAll()).map(trialKey));
+    for (const trial of incoming.dsstTrials) {
+      const key = trialKey(trial);
+      if (dsstSeen.has(key)) continue;
+      dsstSeen.add(key);
+      await tx.objectStore('dsstTrials').add({ ...trial });
+    }
+    const attemptSeen = new Map((await tx.objectStore('attempts').getAll()).map((a) => [attemptKey(a), a]));
+    for (const remote of incoming.attempts) {
+      const local = attemptSeen.get(attemptKey(remote)) ?? null;
+      if (shouldTakeRemoteAttempt(local, remote)) await tx.objectStore('attempts').put(remote);
+    }
+    await tx.done;
+  } catch (err) {
+    tx.done.catch(() => undefined);
+    try {
+      tx.abort();
+    } catch {
+      // Transaktion ist bereits beendet.
+    }
+    throw err;
+  }
+  wrote();
 }
 
 export async function allRaw(): Promise<{ pvt: PvtTrial[]; dsst: DsstTrial[]; attempts: AttemptLog[] }> {

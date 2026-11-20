@@ -3,6 +3,10 @@ import { isBackupFile } from '../backupFormat';
 import { dailyCsv, dsstCsv, pvtCsv } from '../csv';
 import { localDateTime } from '../dates';
 import { setCachedSettings } from '../state';
+import { signOut } from '../cloud/auth';
+import { cloudConfig } from '../cloud/config';
+import { pullAll, runSync } from '../cloud/sync';
+import { loadSession } from '../cloud/session';
 import { confirmDialog, h, toast } from '../ui/dom';
 import { dl, notice, page } from '../ui/layout';
 import type { BackupFile, Settings } from '../types';
@@ -121,6 +125,40 @@ async function importBackup(file: File): Promise<void> {
   location.hash = '#/';
 }
 
+function accountActions(): Node[] {
+  const config = cloudConfig();
+  const session = loadSession();
+  if (!config || !session) return [];
+  const load = h('button', { class: 'btn btn-secondary', type: 'button' }, 'Alle Kontodaten laden');
+  load.addEventListener('click', async () => {
+    const ok = await confirmDialog(
+      'Daten aller Personen auf dieses Gerät laden? Der Export enthält danach alle Messwerte. Nur auf dem Auswertungscomputer verwenden.',
+      'Laden',
+    );
+    if (!ok) return;
+    try {
+      await pullAll(config, session);
+      toast('Kontodaten geladen');
+      location.reload();
+    } catch (err) {
+      console.error('Laden fehlgeschlagen', err instanceof Error ? err.message : '');
+      toast('Laden fehlgeschlagen. Die Daten auf diesem Gerät sind unverändert.');
+    }
+  });
+  const upload = h('button', { class: 'btn btn-secondary', type: 'button' }, 'Jetzt hochladen');
+  upload.addEventListener('click', async () => {
+    await runSync();
+    toast('Hochladen angestossen');
+    location.reload();
+  });
+  const out = h('button', { class: 'btn btn-secondary', type: 'button' }, 'Abmelden');
+  out.addEventListener('click', async () => {
+    await signOut(config);
+    location.reload();
+  });
+  return [h('p', { class: 'hint' }, `Angemeldet als ${session.email}.`), load, upload, out];
+}
+
 export async function renderData(): Promise<void> {
   const s = await getSettings();
   const days = await allDays(s?.participantId);
@@ -181,6 +219,13 @@ export async function renderData(): Promise<void> {
         ['DSST-Durchgänge', String(raw.dsst.length)],
         ['Letztes Backup', last],
       ]),
+      h('h2', null, 'Am Ende der Studie'),
+      h(
+        'p',
+        null,
+        'Die Messwerte liegen zuerst auf dem Handy. Exportieren Sie von jedem Handy die Datei daily_summary. Sind die Handys am Studienkonto angemeldet, liegen dieselben Werte auch dort und können auf einem Computer zusammengeladen werden.',
+      ),
+      ...accountActions(),
       h('h2', null, 'Exportieren'),
       h('p', null, 'Für die Auswertung reicht daily_summary. Die Rohdaten dienen zur Kontrolle. Das Backup enthält alles und kann wieder eingelesen werden.'),
       shareAll,

@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { describe, expect, it } from 'vitest';
-import { addPvtTrials, allDays, buildBackup, restoreBackup, saveDay, saveSettings, getSettings } from '../src/db';
+import { addPvtTrials, allDays, buildBackup, getDay, mergeRemote, restoreBackup, saveDay, saveSettings, getSettings } from '../src/db';
 import { isBackupFile } from '../src/backupFormat';
 import type { BackupFile, DayRecord, Settings } from '../src/types';
 
@@ -81,5 +81,18 @@ describe('Backup', () => {
     expect(after.days.map((d) => d.date)).toEqual(before.days.map((d) => d.date));
     expect(after.pvtTrials).toHaveLength(before.pvtTrials.length);
     expect((await getSettings())?.participantId).toBe('P2');
+  });
+
+  it('Zusammenfuehren laesst die Einrichtung und den weiter fortgeschrittenen Tag stehen', async () => {
+    await saveSettings(settings);
+    await saveDay(day('2026-11-08'));
+    const older = day('2026-11-08');
+    older.step = 'pre';
+    const remote = day('2026-11-10');
+    remote.participantId = 'P3';
+    await mergeRemote({ days: [older, remote], pvtTrials: [], dsstTrials: [], attempts: [] });
+    expect((await getSettings())?.participantId).toBe('P2');
+    expect((await getDay('P2', '2026-11-08'))?.step).toBe('done');
+    expect((await getDay('P3', '2026-11-10'))?.date).toBe('2026-11-10');
   });
 });

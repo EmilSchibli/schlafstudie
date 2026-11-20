@@ -86,6 +86,22 @@ Ungueltige Tests (abgebrochen) erscheinen in daily_summary ohne Kennwerte, mit `
 
 Nach jedem Protokoll das Backup senden (an sich selbst oder in den Gruppenchat). Die Startseite warnt, wenn das letzte Backup aelter als 3 Tage ist.
 
+Am Ende der Studie die Datei `daily_summary` von jedem Handy exportieren. Das ist der Datensatz fuer die Auswertung, auch ohne Internet.
+
+## Studienkonto (optional)
+
+Kostenloses Supabase-Projekt. Solange die beiden Werte unten fehlen, bleibt alles nur auf dem Handy und es gibt keinen Anmeldebildschirm.
+
+1. Auf https://supabase.com ein Projekt anlegen.
+2. Im SQL-Editor den Inhalt von `supabase/schema.sql` ausfuehren.
+3. Unter Authentication einen Benutzer anlegen (E-Mail und Kennwort). Dasselbe Konto auf allen Handys und am Auswertungscomputer verwenden.
+4. Unter Project Settings, API die Project URL und den anon/publishable Schluessel kopieren. Den service_role Schluessel nie in die App oder ins Repository nehmen.
+5. Lokal in `.env` eintragen (Vorlage: `.env.example`). Fuer GitHub Pages dieselben Namen als Repository-Secrets `VITE_SUPABASE_URL` und `VITE_SUPABASE_ANON_KEY` setzen und den Workflow erneut starten.
+
+Danach verlangt die App die Anmeldung. Neue Messwerte werden ins Konto hochgeladen, bleiben aber zusaetzlich auf dem Handy, wenn gerade kein Internet da ist. Am Auswertungscomputer anmelden, unter Daten «Alle Kontodaten laden», dann exportieren.
+
+Der anonyme Schluessel steckt im oeffentlichen Seitenpaket. Lesen und Schreiben geht nur mit der Anmeldung. Das Kennwort steht nicht im Code.
+
 ## Messgenauigkeit
 
 - Zeitmessung nur mit `performance.now()` und `event.timeStamp`.

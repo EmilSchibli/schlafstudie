@@ -1,5 +1,5 @@
 import { PARTICIPANTS } from './config';
-import type { BackupFile, FlowStep } from './types';
+import type { AttemptLog, BackupFile, DayRecord, DsstTrial, FlowStep, PvtTrial } from './types';
 
 export const BACKUP_SCHEMA = 'bma-schlafstudie-1';
 
@@ -26,7 +26,26 @@ const isDay = (d: Rec): boolean => isParticipant(d.participantId) && isDate(d.da
 
 const isTrial = (t: Rec): boolean => isText(t.sessionId);
 
+const PVT_TYPES = ['valid', 'lapse', 'false_start', 'timeout'] as const;
+const ATTEMPT_STATUS = ['running', 'completed', 'aborted'] as const;
+
 const isAttempt = (a: Rec): boolean => isText(a.sessionId) && (a.test === 'pvt' || a.test === 'dsst') && Number.isInteger(a.attempt);
+
+export function isDayRecord(x: unknown): x is DayRecord {
+  return isRecord(x) && isDay(x);
+}
+
+export function isPvtTrialRecord(x: unknown): x is PvtTrial {
+  return isRecord(x) && isText(x.sessionId) && Number.isInteger(x.attempt) && Number.isInteger(x.trialIndex) && (PVT_TYPES as readonly unknown[]).includes(x.type);
+}
+
+export function isDsstTrialRecord(x: unknown): x is DsstTrial {
+  return isRecord(x) && isText(x.sessionId) && Number.isInteger(x.attempt) && Number.isInteger(x.trialIndex) && typeof x.correct === 'boolean';
+}
+
+export function isAttemptLog(x: unknown): x is AttemptLog {
+  return isRecord(x) && isAttempt(x) && (ATTEMPT_STATUS as readonly unknown[]).includes(x.status);
+}
 
 /**
  * Prueft eine eingelesene Datei, bevor sie den Datenbestand ersetzt.

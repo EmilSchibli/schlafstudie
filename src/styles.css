@@ -242,6 +242,8 @@ a {
 input[type='date'],
 input[type='time'],
 input[type='number'],
+input[type='email'],
+input[type='password'],
 textarea {
   display: block;
   width: 100%;
