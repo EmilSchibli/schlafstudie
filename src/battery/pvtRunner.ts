@@ -3,7 +3,7 @@ import { classifyRt, drawIsi, estimateRefreshRate } from '../metrics/pvt';
 import type { PvtTrialType } from '../types';
 import { h } from '../ui/dom';
 import { createSevenSeg } from '../ui/sevenseg';
-import { requestWakeLock } from '../device';
+import { requestWakeLock, setThemeColor } from '../device';
 import { createAbortButton } from './abortButton';
 
 export interface RawPvtTrial {
@@ -60,6 +60,7 @@ export function runPvt(
   container.replaceChildren(screen);
   display.show(null);
   document.body.classList.add('test-running');
+  setThemeColor('#1e2226');
 
   const trials: RawPvtTrial[] = [];
   const frameDeltas: number[] = [];
@@ -94,6 +95,7 @@ export function runPvt(
     document.removeEventListener('visibilitychange', onVisibility);
     window.removeEventListener('pagehide', onPageHide);
     document.body.classList.remove('test-running');
+    setThemeColor(null);
     wake.release();
   };
 

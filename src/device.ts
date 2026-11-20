@@ -38,6 +38,11 @@ export function isStandalone(): boolean {
   );
 }
 
+/** Farbe der Systemleiste. null setzt die helle Standardfarbe zurueck. */
+export function setThemeColor(color: string | null): void {
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', color ?? '#f2f4f5');
+}
+
 /** Bildschirm waehrend der Tests wach halten. */
 export async function requestWakeLock(): Promise<{ release: () => void }> {
   try {

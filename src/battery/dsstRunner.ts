@@ -2,7 +2,7 @@ import { DSST } from '../config';
 import { createMapping, nextSymbol } from '../metrics/dsst';
 import { h } from '../ui/dom';
 import { symbolSvg } from '../ui/symbols';
-import { requestWakeLock } from '../device';
+import { requestWakeLock, setThemeColor } from '../device';
 import { createAbortButton } from './abortButton';
 
 export interface RawDsstTrial {
@@ -64,6 +64,7 @@ export function runDsst(
   const screen = h('div', { class: 'dsst-screen' }, h('div', { class: 'dsst-top' }, status, abortBtn), key, target, pad, intermission);
   container.replaceChildren(screen);
   document.body.classList.add('test-running');
+  setThemeColor('#f2f4f5');
 
   type Mode = 'practice' | 'between' | 'test' | 'done';
   let mode: Mode = 'practice';
@@ -108,6 +109,7 @@ export function runDsst(
     document.removeEventListener('visibilitychange', onVisibility);
     window.removeEventListener('pagehide', onPageHide);
     document.body.classList.remove('test-running');
+    setThemeColor(null);
     wake.release();
   };
 
